@@ -1,5 +1,12 @@
 # Rust code actions missing through agent-lsp 0.19.2
 
+**Fixed upstream:** [PR #25](https://github.com/blackwell-systems/agent-lsp/pull/25)
+was merged on 2026-09-06 as
+[`c7d6a8e`](https://github.com/blackwell-systems/agent-lsp/commit/c7d6a8e72e42a10bbfa8c53a8f407ab78f3b612b).
+This repository is kept as a completed reproduction. The original pinned
+versions, instructions, and saved results below are unchanged so the problem
+and fix can still be reproduced.
+
 This small Rust project shows a problem with agent-lsp 0.19.2 and rust-analyzer
 2026-08-03: hover works, but code actions return an empty list.
 
