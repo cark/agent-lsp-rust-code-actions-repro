@@ -1,0 +1,155 @@
+{
+  "expected": "edits",
+  "agent_lsp_version": "0.19.2",
+  "rust_analyzer_version": "rust-analyzer 2026-08-03",
+  "semantic_hover": {
+    "content": [
+      {
+        "type": "text",
+        "text": "\n```rust\nlet value: i32\n```\n\n---\n\nsize = 4, align = 0x4, no Drop"
+      },
+      {
+        "type": "text",
+        "text": "Next step: Use find_references to find all usages of this symbol."
+      }
+    ]
+  },
+  "suggest_fixes_arguments": {
+    "file_path": "/REPRO/src/main.rs",
+    "language_id": "rust",
+    "start_line": 2,
+    "start_column": 9,
+    "end_line": 2,
+    "end_column": 9
+  },
+  "actions": [
+    {
+      "title": "Insert explicit type `i32`",
+      "kind": "refactor.rewrite",
+      "edit": {
+        "documentChanges": [
+          {
+            "edits": [
+              {
+                "newText": ": i32",
+                "range": {
+                  "end": {
+                    "character": 13,
+                    "line": 1
+                  },
+                  "start": {
+                    "character": 13,
+                    "line": 1
+                  }
+                }
+              }
+            ],
+            "textDocument": {
+              "uri": "file:///REPRO/src/main.rs",
+              "version": 4
+            }
+          }
+        ]
+      }
+    },
+    {
+      "title": "Inline variable",
+      "kind": "refactor.inline",
+      "edit": {
+        "documentChanges": [
+          {
+            "edits": [
+              {
+                "newText": "std::hint::black_box(1 + 2);\n}",
+                "range": {
+                  "end": {
+                    "character": 1,
+                    "line": 3
+                  },
+                  "start": {
+                    "character": 4,
+                    "line": 1
+                  }
+                }
+              }
+            ],
+            "textDocument": {
+              "uri": "file:///REPRO/src/main.rs",
+              "version": 4
+            }
+          }
+        ]
+      }
+    },
+    {
+      "title": "Promote local to constant",
+      "kind": "refactor",
+      "edit": {
+        "documentChanges": [
+          {
+            "edits": [
+              {
+                "newText": "const",
+                "range": {
+                  "end": {
+                    "character": 7,
+                    "line": 1
+                  },
+                  "start": {
+                    "character": 4,
+                    "line": 1
+                  }
+                }
+              },
+              {
+                "newText": "VALUE:",
+                "range": {
+                  "end": {
+                    "character": 13,
+                    "line": 1
+                  },
+                  "start": {
+                    "character": 8,
+                    "line": 1
+                  }
+                }
+              },
+              {
+                "newText": "i32 ",
+                "range": {
+                  "end": {
+                    "character": 14,
+                    "line": 1
+                  },
+                  "start": {
+                    "character": 14,
+                    "line": 1
+                  }
+                }
+              },
+              {
+                "newText": "VALUE",
+                "range": {
+                  "end": {
+                    "character": 30,
+                    "line": 2
+                  },
+                  "start": {
+                    "character": 25,
+                    "line": 2
+                  }
+                }
+              }
+            ],
+            "textDocument": {
+              "uri": "file:///REPRO/src/main.rs",
+              "version": 4
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "source_sha256": "3bf80337de83d7e51b50cdd2589d56acbe351eeef4e1baf7aaa13a6ba1ebc5a8",
+  "source_unchanged": true
+}

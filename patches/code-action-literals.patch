@@ -1,0 +1,12 @@
+--- a/internal/lsp/client.go
++++ b/internal/lsp/client.go
+@@ -973,6 +973,9 @@
+ 				},
+ 				"codeAction": map[string]any{
+ 					"dynamicRegistration": true,
++					"codeActionLiteralSupport": map[string]any{
++						"codeActionKind": map[string]any{"valueSet": []string{"", "quickfix", "refactor", "refactor.extract", "refactor.inline", "refactor.rewrite", "source", "source.organizeImports"}},
++					},
+ 				},
+ 				"signatureHelp": map[string]any{
+ 					"dynamicRegistration": true,
