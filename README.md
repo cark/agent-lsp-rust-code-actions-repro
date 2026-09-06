@@ -1,8 +1,10 @@
 # Rust code actions missing through agent-lsp 0.19.2
 
-A dependency-free, four-line Rust crate reproduces empty code-action responses
-from agent-lsp 0.19.2 with rust-analyzer 2026-08-03. Adding only the missing
-client capability makes the same request return an explicit-type edit.
+This small Rust project shows a problem with agent-lsp 0.19.2 and rust-analyzer
+2026-08-03: hover works, but code actions return an empty list.
+
+Adding one missing capability to agent-lsp's startup message makes code actions
+work.
 
 ```rust
 fn main() {
@@ -11,20 +13,20 @@ fn main() {
 }
 ```
 
-## Reproduce with existing tools
+## Run the example
 
-Requirements: a POSIX host, Python 3, Cargo/Rust, rust-analyzer, and agent-lsp
-0.19.2 on PATH. No Python or Rust dependencies are needed. The tested versions
-are pinned by the optional Nix setup below.
+You need a POSIX system, Python 3, Cargo/Rust, rust-analyzer, and agent-lsp 0.19.2
+on your PATH. There are no extra Python or Rust packages to install.
+
+From this directory, run:
 
 ```sh
 cargo check --locked
 python3 reproduce.py --expect empty
 ```
 
-The script launches its own stdio MCP bridge, starts a Rust session for this
-crate, opens `src/main.rs`, and waits until hover at line 2, column 9 reports
-`i32`. It then calls `suggest_fixes` with:
+The script starts agent-lsp, opens `src/main.rs`, and waits until hover
+identifies `value` as `i32`. It then asks for code actions at line 2, column 9:
 
 ```json
 {
@@ -37,20 +39,24 @@ crate, opens `src/main.rs`, and waits until hover at line 2, column 9 reports
 }
 ```
 
-Observed unpatched result: `[]`, despite semantic hover succeeding.
-Expected useful result: an ``Insert explicit type `i32` `` action carrying the
-edit that changes `let value = ...` to `let value: i32 = ...`.
+Without the patch, the result is `[]`.
 
-The script checks the expected result and source preservation, prints JSON
-evidence, and terminates only its own process group. Startup retries are bounded
-and specific to empty hover or `content modified`. It never calls an edit,
-rename, or execution tool and does not connect to an editor. Public tool
-positions are 1-based; positions inside returned LSP edits are 0-based.
+With the patch, the result includes “Insert explicit type `i32`,” with an edit
+that changes `let value = ...` to `let value: i32 = ...`.
 
-## Pinned before/after experiment with Nix
+The script prints the result as JSON and checks that the Rust file is unchanged.
+It uses a separate stdio MCP session and stops its own processes when done. It
+doesn't connect to your editor or apply any edits.
 
-The lock pins agent-lsp to `c7ea45e5a3f1d971293a7f56337deb2afb5bbe71`
-(v0.19.2) and nixpkgs to the tested Rust toolchain. Verified on x86_64 Linux.
+Startup retries handle empty hover results and `content modified` errors, with
+time and retry limits. Tool-call positions start at 1; positions inside returned
+LSP edits start at 0.
+
+## Compare both versions with Nix
+
+The Nix setup pins agent-lsp to v0.19.2, commit
+`c7ea45e5a3f1d971293a7f56337deb2afb5bbe71`, and pins nixpkgs for the Rust
+toolchain. These commands were tested on x86_64 Linux:
 
 ```sh
 nix develop -c cargo check --locked
@@ -59,35 +65,51 @@ patched=$(nix build .#patched --no-link --print-out-paths)
 nix develop -c python reproduce.py --agent-lsp "$patched/bin/agent-lsp" --expect edits
 ```
 
-The first probe must return no actions. The second must return an explicit-type
-action with a real `: i32` edit; an action title or unresolved data alone does
-not pass. Both use the same Rust crate and rust-analyzer binary. Build outputs
-are not installed globally.
+The first run checks for an empty list. The second checks for an explicit-type
+action containing the `: i32` edit, rather than just an action title. Both runs
+use the same Rust project and rust-analyzer. Nothing is installed globally.
 
-Without Nix, build the pinned upstream Go source, apply
-[the patch](patches/code-action-literals.patch) in a disposable checkout, rebuild,
-and pass that executable with `--agent-lsp /absolute/path/to/patched/agent-lsp`.
-The `--rust-analyzer` argument can select a particular analyzer executable.
+To test the patch without Nix, build the pinned agent-lsp source, apply
+[the patch](patches/code-action-literals.patch) in a separate checkout, and
+rebuild. Then run:
 
-## Cause and scope
+```sh
+python3 reproduce.py \
+  --agent-lsp /absolute/path/to/patched/agent-lsp \
+  --expect edits
+```
 
-Agent-lsp's initialization message advertises only `dynamicRegistration` under
-`textDocument.codeAction`; it omits `codeActionLiteralSupport`.
-Rust-analyzer checks that capability and returns no code actions when absent.
-The patch adds the standard literal-support capability and kind value set.
-It does **not** advertise lazy resolution. This analyzer supplies edits eagerly
-when lazy resolution is absent, so no `codeAction/resolve` implementation is
-needed for this experiment.
+You can also choose an analyzer with `--rust-analyzer /path/to/rust-analyzer`.
 
-- [Pinned bridge initialization](https://github.com/blackwell-systems/agent-lsp/blob/c7ea45e5a3f1d971293a7f56337deb2afb5bbe71/internal/lsp/client.go#L974)
-- [Pinned analyzer handler](https://github.com/rust-lang/rust-analyzer/blob/2026-08-03/crates/rust-analyzer/src/handlers/request.rs#L1507)
-- [Pinned analyzer capability check](https://github.com/rust-lang/rust-analyzer/blob/2026-08-03/crates/rust-analyzer/src/lsp/capabilities.rs#L378)
+## Why it happens
 
-[Unpatched](results/unpatched.json) and [patched](results/patched.json) outputs
-record the verified runs. `/REPRO` replaces the checkout's absolute path;
-document versions may vary with startup retries. This demonstrates action
-discovery and edit delivery, not correctness of every returned refactoring.
+Agent-lsp sends only `dynamicRegistration` under `textDocument.codeAction`
+during startup. It leaves out `codeActionLiteralSupport`, which tells the
+language server that the client understands code-action responses.
 
-Prepared with AI assistance. The commands and before/after results were run
-against the pinned tools. This repository is a reproduction, not an upstream
-issue or pull request.
+Rust-analyzer checks for that capability and returns no actions when it is
+missing.
+
+The patch adds `codeActionLiteralSupport` and its list of action kinds. It
+leaves lazy resolution disabled, so rust-analyzer includes edits in the initial
+response. There is no need to add a separate `codeAction/resolve` request for
+this fix.
+
+Relevant source:
+
+- [Agent-lsp startup message](https://github.com/blackwell-systems/agent-lsp/blob/c7ea45e5a3f1d971293a7f56337deb2afb5bbe71/internal/lsp/client.go#L974)
+- [Rust-analyzer code-action handler](https://github.com/rust-lang/rust-analyzer/blob/2026-08-03/crates/rust-analyzer/src/handlers/request.rs#L1507)
+- [Rust-analyzer capability check](https://github.com/rust-lang/rust-analyzer/blob/2026-08-03/crates/rust-analyzer/src/lsp/capabilities.rs#L378)
+
+## Saved results
+
+The [unpatched output](results/unpatched.json) and
+[patched output](results/patched.json) come from runs of this example. Local
+paths have been replaced with `/REPRO`. Document version numbers may differ
+between runs because of startup retries.
+
+This checks that code actions include edits. It doesn't test the correctness
+of every suggested refactoring.
+
+This reproduction and README were generated by an AI agent. The example and
+before/after commands were run with the pinned tools.
